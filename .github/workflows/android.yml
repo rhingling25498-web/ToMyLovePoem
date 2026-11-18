@@ -11,6 +11,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,23 +24,40 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
 
-      - name: Extract project
+      - name: Find and extract V7 project
         run: |
-          unzip -q "ToMyLovePoem-Android-Project-v7(1).zip"
-          test -f ToMyLovePoem/app/build.gradle.kts
+          ZIP_FILE="$(find . -maxdepth 1 -type f -iname '*v7*.zip' | head -n 1)"
+          if [ -z "$ZIP_FILE" ]; then
+            echo "V7 ZIP file not found!"
+            exit 1
+          fi
+
+          mkdir -p project
+          unzip -q "$ZIP_FILE" -d project
+
+          BUILD_FILE="$(find project -name build.gradle.kts -path '*/app/build.gradle.kts' | head -n 1)"
+          if [ -z "$BUILD_FILE" ]; then
+            echo "App build.gradle.kts not found!"
+            exit 1
+          fi
+
+          PROJECT_DIR="$(dirname "$(dirname "$BUILD_FILE")")"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Build APK
-        working-directory: ToMyLovePoem
-        run: gradle assembleDebug --no-daemon
+        run: gradle -p "$PROJECT_DIR" assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ToMyLovePoem-APK
-          path: ToMyLovePoem/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

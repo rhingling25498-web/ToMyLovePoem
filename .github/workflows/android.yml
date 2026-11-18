@@ -1,0 +1,45 @@
+
+name: Build To My Love APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.zip'
+      - '.github/workflows/android.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Extract project
+        run: |
+          unzip -q "ToMyLovePoem-Android-Project-v7(1).zip"
+          test -f ToMyLovePoem/app/build.gradle.kts
+
+      - name: Build APK
+        working-directory: ToMyLovePoem
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ToMyLovePoem-APK
+          path: ToMyLovePoem/app/build/outputs/apk/debug/app-debug.apk
